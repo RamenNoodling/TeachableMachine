@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine Audio Model</title>
+    <title>Letter Detector (A, B, C, D)</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f4f7f6;
-            color: #333;
+            background-color: #0f172a;
+            color: #f8fafc;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -19,100 +19,99 @@
         }
 
         h1 {
-            color: #2c3e50;
-            margin-bottom: 10px;
+            color: #38bdf8;
+            margin-bottom: 5px;
+            font-size: 2.5rem;
         }
 
         p {
-            color: #7f8c8d;
-            margin-bottom: 20px;
+            color: #94a3b8;
+            margin-bottom: 30px;
             text-align: center;
-            max-width: 400px;
+            max-width: 500px;
         }
 
         button {
-            background-color: #e74c3c;
-            color: white;
+            background-color: #38bdf8;
+            color: #0f172a;
             border: none;
-            padding: 15px 30px;
+            padding: 16px 32px;
             font-size: 18px;
             font-weight: bold;
-            border-radius: 25px;
+            border-radius: 30px;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
+            margin-bottom: 20px;
         }
 
         button:hover {
-            background-color: #c0392b;
-            transform: translateY(-2px);
+            background-color: #7dd3fc;
+            transform: scale(1.03);
         }
 
-        /* Audio Status Indicator */
-        #status-indicator {
-            display: none;
+        /* Large Visual Display for Detected Letter */
+        #focus-card {
+            width: 200px;
+            height: 200px;
+            background-color: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 20px;
+            display: flex;
             align-items: center;
-            margin-bottom: 20px;
-            font-weight: bold;
-            color: #27ae60;
+            justify-content: center;
+            font-size: 6rem;
+            font-weight: 800;
+            color: #64748b;
+            margin-bottom: 30px;
+            transition: all 0.15s ease;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
         }
 
-        .pulse {
-            width: 12px;
-            height: 12px;
-            background-color: #27ae60;
-            border-radius: 50%;
-            margin-right: 10px;
-            animation: blink 1.5s infinite ease-in-out;
+        #focus-card.active {
+            color: #38bdf8;
+            border-color: #38bdf8;
+            background-color: #0c4a6e;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
+            transform: scale(1.05);
         }
 
-        @keyframes blink {
-            0% { opacity: 0.3; transform: scale(0.9); }
-            50% { opacity: 1; transform: scale(1.1); }
-            100% { opacity: 0.3; transform: scale(0.9); }
-        }
-
+        /* Real-time Bars Container */
         #label-container {
-            background: white;
+            background: #1e293b;
             padding: 20px 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-            min-width: 300px;
+            border-radius: 16px;
+            border: 1px solid #334155;
+            min-width: 320px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         }
 
         .prediction-label {
             display: flex;
             flex-direction: column;
-            padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
-        }
-
-        .prediction-label:last-child {
-            border-bottom: none;
+            padding: 10px 0;
         }
 
         .label-info {
             display: flex;
             justify-content: space-between;
             font-size: 16px;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
         }
 
         .class-name {
             font-weight: 600;
-            color: #34495e;
+            color: #e2e8f0;
         }
 
         .class-probability {
-            color: #2980b9;
+            color: #38bdf8;
             font-weight: bold;
         }
 
-        /* Visual Progress Bar for confidence */
         .progress-bar-background {
             width: 100%;
-            background-color: #eceff1;
+            background-color: #334155;
             height: 8px;
             border-radius: 4px;
             overflow: hidden;
@@ -120,7 +119,7 @@
 
         .progress-bar-fill {
             height: 100%;
-            background-color: #3498db;
+            background-color: #38bdf8;
             width: 0%;
             transition: width 0.1s ease-out;
         }
@@ -128,14 +127,12 @@
 </head>
 <body>
 
-    <h1>Audio Classifier</h1>
-    <p>Click below to allow microphone access. The model will continuously analyze ambient sounds.</p>
+    <h1>Letter Detector AI</h1>
+    <p>Say <strong>A, B, C, or D</strong> out loud. Make sure you are in a quiet room for the best accuracy.</p>
     
     <button type="button" onclick="init()">Start Listening</button>
     
-    <div id="status-indicator">
-        <div class="pulse"></div> Listening...
-    </div>
+    <div id="focus-card">?</div>
 
     <div id="label-container"></div>
 
@@ -143,35 +140,32 @@
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/audio@latest/dist/teachablemachine-audio.min.js"></script>
 
     <script type="text/javascript">
-        // Your Teachable Machine Audio URL
         const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
-
         let recognizer;
 
         async function init() {
             const checkpointURL = URL + "model.json"; 
             const metadataURL = URL + "metadata.json"; 
 
-            // Hide initial button and show live status indicator
+            // Clean up UI on start
             document.querySelector("button").style.display = "none";
-            const statusIndicator = document.getElementById("status-indicator");
-            statusIndicator.style.display = "flex";
+            const focusCard = document.getElementById("focus-card");
+            focusCard.innerText = "-";
 
-            // Create and load the audio classifier
+            // Initialize audio model framework
             recognizer = speechCommands.create(
-                "BROWSER_FFT", // Fourier Transform type; required
-                undefined,     // vocabulary feature; leave undefined for custom models
+                "BROWSER_FFT", 
+                undefined,     
                 checkpointURL,
                 metadataURL
             );
 
-            // Ensure the model is completely loaded
             await recognizer.ensureModelLoaded();
             
-            const classLabels = recognizer.wordLabels(); // Gets list of classes
+            const classLabels = recognizer.wordLabels(); 
             const labelContainer = document.getElementById("label-container");
             
-            // Generate progress bar UI rows for each class
+            // Build the real-time feedback meters dynamically
             for (let i = 0; i < classLabels.length; i++) {
                 let labelDiv = document.createElement("div");
                 labelDiv.className = "prediction-label";
@@ -203,23 +197,39 @@
                 labelContainer.appendChild(labelDiv);
             }
 
-            // Listen starts listening to the microphone 
-            // overlapFactor determines how often it checks (0.5 means it checks every half-frame)
+            // Continuous background audio stream processing
             recognizer.listen(result => {
                 const scores = result.scores; 
-                
+                let highestScore = 0;
+                let highestClass = "";
+
                 for (let i = 0; i < classLabels.length; i++) {
-                    const percentage = (scores[i] * 100).toFixed(0);
+                    const currentScore = scores[i];
+                    const percentage = (currentScore * 100).toFixed(0);
                     
-                    // Update text percentages
+                    // Update specific row tracking elements
                     labelContainer.childNodes[i].querySelector('.class-probability').innerHTML = percentage + "%";
-                    
-                    // Smoothly animate the graphical progress bar width
                     document.getElementById("bar-" + i).style.width = percentage + "%";
+                    
+                    // Keep track of the top sound predicted in this millisecond frame
+                    if (currentScore > highestScore) {
+                        highestScore = currentScore;
+                        highestClass = classLabels[i];
+                    }
                 }
+
+                // If the top prediction is above 85% confidence AND isn't background noise, spotlight it!
+                if (highestScore > 0.85 && highestClass.toLowerCase() !== "background noise") {
+                    focusCard.innerText = highestClass.toUpperCase();
+                    focusCard.classList.add("active");
+                } else {
+                    // Turn off active glow when it returns to ambient silence
+                    focusCard.classList.remove("active");
+                }
+
             }, {
                 includeSpectrogram: false, 
-                probabilityThreshold: 0.75,
+                probabilityThreshold: 0.70,
                 invokeCallbackOnNoiseAndUnknown: true,
                 overlapFactor: 0.50 
             });
