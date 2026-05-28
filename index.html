@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Letter Detector with Pause Feature</title>
+    <title>Letter Detector - Teachable Machine</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -24,7 +24,7 @@
             font-size: 2.5rem;
         }
 
-        p {
+        .subtitle {
             color: #94a3b8;
             margin-bottom: 30px;
             text-align: center;
@@ -82,13 +82,13 @@
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.1em;
-            color: #22c55e; /* Green when listening */
+            color: #22c55e;
             margin-bottom: 25px;
             height: 20px;
         }
 
         #status-text.paused {
-            color: #ef4444; /* Red when paused */
+            color: #ef4444;
             animation: pulse 1s infinite alternate;
         }
 
@@ -97,7 +97,7 @@
             to { opacity: 1; }
         }
 
-        /* Real-time Bars Container */
+        /* Real-time Meter Layout mapped over your label-container */
         #label-container {
             background: #1e293b;
             padding: 20px 30px;
@@ -107,27 +107,19 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.3);
         }
 
-        .prediction-label {
+        .prediction-row {
             display: flex;
             flex-direction: column;
             padding: 10px 0;
         }
 
-        .label-info {
-            display: flex;
-            justify-content: space-between;
-            font-size: 16px;
-            margin-bottom: 6px;
-        }
-
-        .class-name {
+        .label-text {
             font-weight: 600;
             color: #e2e8f0;
-        }
-
-        .class-probability {
-            color: #38bdf8;
-            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
         }
 
         .progress-bar-background {
@@ -148,118 +140,123 @@
 </head>
 <body>
 
+    <div>Teachable Machine Audio Model</div>
     <h1>Letter Detector AI</h1>
-    <p>Say <strong>A, B, C, or D</strong>. When detected above 50%, the system will lock onto it and pause briefly.</p>
+    <div class="subtitle">Say <strong>A, B, C, or D</strong>. Cross 50% probability to freeze the system briefly.</div>
     
-    <button type="button" onclick="init()">Start Listening</button>
+    <button type="button" onclick="init()">Start</button>
     
     <div id="focus-card">?</div>
     <div id="status-text"></div>
 
     <div id="label-container"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/audio@latest/dist/teachablemachine-audio.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
 
     <script type="text/javascript">
+        // The link to your model provided by Teachable Machine export panel
         const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
-        let recognizer;
-        let isPaused = false; // State flag to control the brief pause
+        
+        let isPaused = false;
+        const PAUSE_DURATION = 1500; // Time in milliseconds to pause when a letter is detected
 
-        // PAUSE CONFIGURATION: Adjust the duration here (in milliseconds)
-        const PAUSE_DURATION = 1500; // 1500ms = 1.5 seconds
+        async function createModel() {
+            const checkpointURL = URL + "model.json"; // model topology
+            const metadataURL = URL + "metadata.json"; // model metadata
+
+            const recognizer = speechCommands.create(
+                "BROWSER_FFT", // fourier transform type, not useful to change
+                undefined, // speech commands vocabulary feature, not useful for your models
+                checkpointURL,
+                metadataURL);
+
+            // check that model and metadata are loaded via HTTPS requests.
+            await recognizer.ensureModelLoaded();
+
+            return recognizer;
+        }
 
         async function init() {
-            const checkpointURL = URL + "model.json"; 
-            const metadataURL = URL + "metadata.json"; 
-
-            document.querySelector("button").style.display = "none";
+            const recognizer = await createModel();
+            const classLabels = recognizer.wordLabels(); // get class labels
+            const labelContainer = document.getElementById("label-container");
             const focusCard = document.getElementById("focus-card");
             const statusText = document.getElementById("status-text");
+
+            // UI Adjustments on Start
+            document.querySelector("button").style.display = "none";
             focusCard.innerText = "-";
             statusText.innerText = "Listening...";
 
-            recognizer = speechCommands.create(
-                "BROWSER_FFT", 
-                undefined,     
-                checkpointURL,
-                metadataURL
-            );
-
-            await recognizer.ensureModelLoaded();
-            
-            const classLabels = recognizer.wordLabels(); 
-            const labelContainer = document.getElementById("label-container");
-            
-            // Generate visual meters
+            // Clear any old content and generate visual progress rows for each label
+            labelContainer.innerHTML = "";
             for (let i = 0; i < classLabels.length; i++) {
-                let labelDiv = document.createElement("div");
-                labelDiv.className = "prediction-label";
-                
-                let infoDiv = document.createElement("div");
-                infoDiv.className = "label-info";
-                
-                let nameSpan = document.createElement("span");
-                nameSpan.className = "class-name";
-                nameSpan.innerText = classLabels[i];
-                
-                let probSpan = document.createElement("span");
-                probSpan.className = "class-probability";
-                probSpan.innerText = "0%";
-                
+                let rowDiv = document.createElement("div");
+                rowDiv.className = "prediction-row";
+
+                let textDiv = document.createElement("div");
+                textDiv.className = "label-text";
+                textDiv.id = "text-label-" + i;
+                textDiv.innerHTML = classLabels[i] + ": 0.00";
+
                 let barBg = document.createElement("div");
                 barBg.className = "progress-bar-background";
-                
+
                 let barFill = document.createElement("div");
                 barFill.className = "progress-bar-fill";
                 barFill.id = "bar-" + i;
-                
-                infoDiv.appendChild(nameSpan);
-                infoDiv.appendChild(probSpan);
+
+                rowDiv.appendChild(textDiv);
+                rowDiv.appendChild(barBg);
                 barBg.appendChild(barFill);
-                labelDiv.appendChild(infoDiv);
-                labelDiv.appendChild(barBg);
-                
-                labelContainer.appendChild(labelDiv);
+                labelContainer.appendChild(rowDiv);
             }
 
+            // listen() takes two arguments:
+            // 1. A callback function that is invoked anytime a word is recognized.
+            // 2. A configuration object with adjustable fields
             recognizer.listen(result => {
-                // If the app is currently in a pause cycle, completely ignore incoming mic data
+                // If system is currently frozen in a detection pause, skip processing frame entirely
                 if (isPaused) return;
 
-                const scores = result.scores; 
+                const scores = result.scores; // probability of prediction for each class
                 let highestScore = 0;
                 let highestClass = "";
 
-                // Update real-time UI elements
+                // render the probability scores per class
                 for (let i = 0; i < classLabels.length; i++) {
                     const currentScore = scores[i];
-                    const percentage = (currentScore * 100).toFixed(0);
                     
-                    labelContainer.childNodes[i].querySelector('.class-probability').innerHTML = percentage + "%";
-                    document.getElementById("bar-" + i).style.width = percentage + "%";
+                    // Keep original raw text format requested (e.g., "A: 0.85")
+                    const classPrediction = classLabels[i] + ": " + currentScore.toFixed(2);
+                    document.getElementById("text-label-" + i).innerHTML = classPrediction;
                     
+                    // Animate visual background bars (score * 100 turns it to a percentage width)
+                    document.getElementById("bar-" + i).style.width = (currentScore * 100) + "%";
+
+                    // Track the loudest noise in this frame
                     if (currentScore > highestScore) {
                         highestScore = currentScore;
                         highestClass = classLabels[i];
                     }
                 }
 
-                // Core logic: Check if highest class is one of the target letters and hits the > 50% threshold
+                // Check if top sound hits your 50% threshold and matches one of the letters
                 const targetLetters = ['a', 'b', 'c', 'd'];
                 const detectedClean = highestClass.toLowerCase().trim();
 
                 if (highestScore > 0.50 && targetLetters.includes(detectedClean)) {
-                    // 1. Trigger visual lock
+                    // Activate temporary program lock flag
+                    isPaused = true;
+
+                    // Display matched letter onto the big visual display
                     focusCard.innerText = highestClass.toUpperCase();
                     focusCard.classList.add("active");
                     statusText.innerText = "Paused / Locked";
                     statusText.className = "paused";
-                    
-                    // 2. Activate pause flag to lock current tracking data
-                    isPaused = true;
 
-                    // 3. Set a timer to unlock the application after the specified time frame
+                    // Release lock and clear screen back to listening defaults after time delay expires
                     setTimeout(() => {
                         isPaused = false;
                         focusCard.classList.remove("active");
@@ -267,15 +264,14 @@
                         statusText.className = "";
                     }, PAUSE_DURATION);
                 } else {
-                    // Turn off card active styling if ambient noise or below 50%
                     focusCard.classList.remove("active");
                 }
 
             }, {
-                includeSpectrogram: false, 
-                probabilityThreshold: 0.50, // Matches your requested sensitivity trigger
+                includeSpectrogram: true, // in case listen should return result.spectrogram
+                probabilityThreshold: 0.50, // Updated lower floor threshold to support your 50% target matches
                 invokeCallbackOnNoiseAndUnknown: true,
-                overlapFactor: 0.50 
+                overlapFactor: 0.50 // probably want between 0.5 and 0.75. More info in README
             });
         }
     </script>
