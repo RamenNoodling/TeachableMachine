@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Letter Detector (A, B, C, D)</title>
+    <title>Letter Detector with Pause Feature</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -63,7 +63,7 @@
             font-size: 6rem;
             font-weight: 800;
             color: #64748b;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             transition: all 0.15s ease;
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
         }
@@ -74,6 +74,27 @@
             background-color: #0c4a6e;
             box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
             transform: scale(1.05);
+        }
+
+        /* System State Readout Text */
+        #status-text {
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #22c55e; /* Green when listening */
+            margin-bottom: 25px;
+            height: 20px;
+        }
+
+        #status-text.paused {
+            color: #ef4444; /* Red when paused */
+            animation: pulse 1s infinite alternate;
+        }
+
+        @keyframes pulse {
+            from { opacity: 0.6; }
+            to { opacity: 1; }
         }
 
         /* Real-time Bars Container */
@@ -121,18 +142,19 @@
             height: 100%;
             background-color: #38bdf8;
             width: 0%;
-            transition: width 0.1s ease-out;
+            transition: width 0.05s ease-out;
         }
     </style>
 </head>
 <body>
 
     <h1>Letter Detector AI</h1>
-    <p>Say <strong>A, B, C, or D</strong> out loud. Make sure you are in a quiet room for the best accuracy.</p>
+    <p>Say <strong>A, B, C, or D</strong>. When detected above 50%, the system will lock onto it and pause briefly.</p>
     
     <button type="button" onclick="init()">Start Listening</button>
     
     <div id="focus-card">?</div>
+    <div id="status-text"></div>
 
     <div id="label-container"></div>
 
@@ -142,17 +164,21 @@
     <script type="text/javascript">
         const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
         let recognizer;
+        let isPaused = false; // State flag to control the brief pause
+
+        // PAUSE CONFIGURATION: Adjust the duration here (in milliseconds)
+        const PAUSE_DURATION = 1500; // 1500ms = 1.5 seconds
 
         async function init() {
             const checkpointURL = URL + "model.json"; 
             const metadataURL = URL + "metadata.json"; 
 
-            // Clean up UI on start
             document.querySelector("button").style.display = "none";
             const focusCard = document.getElementById("focus-card");
+            const statusText = document.getElementById("status-text");
             focusCard.innerText = "-";
+            statusText.innerText = "Listening...";
 
-            // Initialize audio model framework
             recognizer = speechCommands.create(
                 "BROWSER_FFT", 
                 undefined,     
@@ -165,7 +191,7 @@
             const classLabels = recognizer.wordLabels(); 
             const labelContainer = document.getElementById("label-container");
             
-            // Build the real-time feedback meters dynamically
+            // Generate visual meters
             for (let i = 0; i < classLabels.length; i++) {
                 let labelDiv = document.createElement("div");
                 labelDiv.className = "prediction-label";
@@ -197,39 +223,57 @@
                 labelContainer.appendChild(labelDiv);
             }
 
-            // Continuous background audio stream processing
             recognizer.listen(result => {
+                // If the app is currently in a pause cycle, completely ignore incoming mic data
+                if (isPaused) return;
+
                 const scores = result.scores; 
                 let highestScore = 0;
                 let highestClass = "";
 
+                // Update real-time UI elements
                 for (let i = 0; i < classLabels.length; i++) {
                     const currentScore = scores[i];
                     const percentage = (currentScore * 100).toFixed(0);
                     
-                    // Update specific row tracking elements
                     labelContainer.childNodes[i].querySelector('.class-probability').innerHTML = percentage + "%";
                     document.getElementById("bar-" + i).style.width = percentage + "%";
                     
-                    // Keep track of the top sound predicted in this millisecond frame
                     if (currentScore > highestScore) {
                         highestScore = currentScore;
                         highestClass = classLabels[i];
                     }
                 }
 
-                // If the top prediction is above 85% confidence AND isn't background noise, spotlight it!
-                if (highestScore > 0.85 && highestClass.toLowerCase() !== "background noise") {
+                // Core logic: Check if highest class is one of the target letters and hits the > 50% threshold
+                const targetLetters = ['a', 'b', 'c', 'd'];
+                const detectedClean = highestClass.toLowerCase().trim();
+
+                if (highestScore > 0.50 && targetLetters.includes(detectedClean)) {
+                    // 1. Trigger visual lock
                     focusCard.innerText = highestClass.toUpperCase();
                     focusCard.classList.add("active");
+                    statusText.innerText = "Paused / Locked";
+                    statusText.className = "paused";
+                    
+                    // 2. Activate pause flag to lock current tracking data
+                    isPaused = true;
+
+                    // 3. Set a timer to unlock the application after the specified time frame
+                    setTimeout(() => {
+                        isPaused = false;
+                        focusCard.classList.remove("active");
+                        statusText.innerText = "Listening...";
+                        statusText.className = "";
+                    }, PAUSE_DURATION);
                 } else {
-                    // Turn off active glow when it returns to ambient silence
+                    // Turn off card active styling if ambient noise or below 50%
                     focusCard.classList.remove("active");
                 }
 
             }, {
                 includeSpectrogram: false, 
-                probabilityThreshold: 0.70,
+                probabilityThreshold: 0.50, // Matches your requested sensitivity trigger
                 invokeCallbackOnNoiseAndUnknown: true,
                 overlapFactor: 0.50 
             });
