@@ -142,7 +142,7 @@
 
     <div>Teachable Machine Audio Model</div>
     <h1>Letter Detector AI</h1>
-    <div class="subtitle">Say <strong>A, B, C, or D</strong>. Cross 50% probability to freeze the system briefly.</div>
+    <div class="subtitle">Say <strong>A, B, C, or D</strong>. Cross 75% probability to freeze the system briefly.</div>
     
     <button type="button" onclick="init()">Start</button>
     
@@ -246,7 +246,7 @@
                 const targetLetters = ['a', 'b', 'c', 'd'];
                 const detectedClean = highestClass.toLowerCase().trim();
 
-                if (highestScore > 0.50 && targetLetters.includes(detectedClean)) {
+                if (highestScore > 0.75 && targetLetters.includes(detectedClean)) {
                     // Activate temporary program lock flag
                     isPaused = true;
 
@@ -269,7 +269,7 @@
 
             }, {
                 includeSpectrogram: true, // in case listen should return result.spectrogram
-                probabilityThreshold: 0.50, // Updated lower floor threshold to support your 50% target matches
+                probabilityThreshold: 0.75, // Updated lower floor threshold to support your 75% target matches
                 invokeCallbackOnNoiseAndUnknown: true,
                 overlapFactor: 0.50 // probably want between 0.5 and 0.75. More info in README
             });
