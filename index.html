@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Audio Model</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            text-align: center;
+            max-width: 400px;
+        }
+
+        button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        button:hover {
+            background-color: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        /* Audio Status Indicator */
+        #status-indicator {
+            display: none;
+            align-items: center;
+            margin-bottom: 20px;
+            font-weight: bold;
+            color: #27ae60;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background-color: #27ae60;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: blink 1.5s infinite ease-in-out;
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.3; transform: scale(0.9); }
+            50% { opacity: 1; transform: scale(1.1); }
+            100% { opacity: 0.3; transform: scale(0.9); }
+        }
+
+        #label-container {
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+            min-width: 300px;
+        }
+
+        .prediction-label {
+            display: flex;
+            flex-direction: column;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .prediction-label:last-child {
+            border-bottom: none;
+        }
+
+        .label-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .class-name {
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .class-probability {
+            color: #2980b9;
+            font-weight: bold;
+        }
+
+        /* Visual Progress Bar for confidence */
+        .progress-bar-background {
+            width: 100%;
+            background-color: #eceff1;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #3498db;
+            width: 0%;
+            transition: width 0.1s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Audio Classifier</h1>
+    <p>Click below to allow microphone access. The model will continuously analyze ambient sounds.</p>
+    
+    <button type="button" onclick="init()">Start Listening</button>
+    
+    <div id="status-indicator">
+        <div class="pulse"></div> Listening...
+    </div>
+
+    <div id="label-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/audio@latest/dist/teachablemachine-audio.min.js"></script>
+
+    <script type="text/javascript">
+        // Your Teachable Machine Audio URL
+        const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
+
+        let recognizer;
+
+        async function init() {
+            const checkpointURL = URL + "model.json"; 
+            const metadataURL = URL + "metadata.json"; 
+
+            // Hide initial button and show live status indicator
+            document.querySelector("button").style.display = "none";
+            const statusIndicator = document.getElementById("status-indicator");
+            statusIndicator.style.display = "flex";
+
+            // Create and load the audio classifier
+            recognizer = speechCommands.create(
+                "BROWSER_FFT", // Fourier Transform type; required
+                undefined,     // vocabulary feature; leave undefined for custom models
+                checkpointURL,
+                metadataURL
+            );
+
+            // Ensure the model is completely loaded
+            await recognizer.ensureModelLoaded();
+            
+            const classLabels = recognizer.wordLabels(); // Gets list of classes
+            const labelContainer = document.getElementById("label-container");
+            
+            // Generate progress bar UI rows for each class
+            for (let i = 0; i < classLabels.length; i++) {
+                let labelDiv = document.createElement("div");
+                labelDiv.className = "prediction-label";
+                
+                let infoDiv = document.createElement("div");
+                infoDiv.className = "label-info";
+                
+                let nameSpan = document.createElement("span");
+                nameSpan.className = "class-name";
+                nameSpan.innerText = classLabels[i];
+                
+                let probSpan = document.createElement("span");
+                probSpan.className = "class-probability";
+                probSpan.innerText = "0%";
+                
+                let barBg = document.createElement("div");
+                barBg.className = "progress-bar-background";
+                
+                let barFill = document.createElement("div");
+                barFill.className = "progress-bar-fill";
+                barFill.id = "bar-" + i;
+                
+                infoDiv.appendChild(nameSpan);
+                infoDiv.appendChild(probSpan);
+                barBg.appendChild(barFill);
+                labelDiv.appendChild(infoDiv);
+                labelDiv.appendChild(barBg);
+                
+                labelContainer.appendChild(labelDiv);
+            }
+
+            // Listen starts listening to the microphone 
+            // overlapFactor determines how often it checks (0.5 means it checks every half-frame)
+            recognizer.listen(result => {
+                const scores = result.scores; 
+                
+                for (let i = 0; i < classLabels.length; i++) {
+                    const percentage = (scores[i] * 100).toFixed(0);
+                    
+                    // Update text percentages
+                    labelContainer.childNodes[i].querySelector('.class-probability').innerHTML = percentage + "%";
+                    
+                    // Smoothly animate the graphical progress bar width
+                    document.getElementById("bar-" + i).style.width = percentage + "%";
+                }
+            }, {
+                includeSpectrogram: false, 
+                probabilityThreshold: 0.75,
+                invokeCallbackOnNoiseAndUnknown: true,
+                overlapFactor: 0.50 
+            });
+        }
+    </script>
+</body>
+</html>
