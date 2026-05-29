@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Letter Detector - Teachable Machine</title>
+    <title>Voice-Controlled Trivia Quiz</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -21,7 +21,7 @@
         h1 {
             color: #38bdf8;
             margin-bottom: 5px;
-            font-size: 2.5rem;
+            font-size: 2.2rem;
         }
 
         .subtitle {
@@ -31,7 +31,8 @@
             max-width: 500px;
         }
 
-        button {
+        /* Start / Action Controls */
+        #start-btn, #lock-btn {
             background-color: #38bdf8;
             color: #0f172a;
             border: none;
@@ -45,36 +46,80 @@
             margin-bottom: 20px;
         }
 
-        button:hover {
+        #start-btn:hover, #lock-btn:hover {
             background-color: #7dd3fc;
             transform: scale(1.03);
         }
 
-        #focus-card {
-            width: 200px;
-            height: 200px;
+        #lock-btn {
+            background-color: #e2e8f0;
+            color: #0f172a;
+            box-shadow: 0 4px 14px rgba(255, 255, 255, 0.1);
+            display: none; /* Shown after initialization */
+        }
+
+        #lock-btn:hover {
+            background-color: #ffffff;
+        }
+
+        /* Trivia Section Card */
+        #quiz-container {
             background-color: #1e293b;
             border: 2px solid #334155;
             border-radius: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 6rem;
-            font-weight: 800;
-            color: #64748b;
-            margin-bottom: 10px;
-            transition: all 0.15s ease;
-            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+            padding: 30px;
+            max-width: 550px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            margin-bottom: 25px;
+            box-sizing: border-box;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
-        #focus-card.active {
-            color: #38bdf8;
+        /* Correct / Wrong States applied to entire quiz card */
+        #quiz-container.correct {
+            border-color: #22c55e;
+            box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
+        }
+
+        #quiz-container.wrong {
+            border-color: #ef4444;
+            box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .question {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .options-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .option {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            padding: 14px 20px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        /* Selection styles generated via voice detection */
+        .option.selected {
             border-color: #38bdf8;
             background-color: #0c4a6e;
-            box-shadow: 0 0 30px rgba(56, 189, 248, 0.6);
-            transform: scale(1.05);
+            color: #38bdf8;
+            font-weight: 700;
         }
 
+        /* Split display system state text */
         #status-text {
             font-size: 14px;
             font-weight: 600;
@@ -95,26 +140,27 @@
             to { opacity: 1; }
         }
 
+        /* Visual Signal Trackers Frame */
         #label-container {
             background: #1e293b;
-            padding: 20px 30px;
+            padding: 15px 25px;
             border-radius: 16px;
             border: 1px solid #334155;
             min-width: 320px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
         }
 
         .prediction-row {
             display: flex;
             flex-direction: column;
-            padding: 10px 0;
+            padding: 8px 0;
         }
 
         .label-text {
             font-weight: 600;
             color: #e2e8f0;
-            font-size: 16px;
-            margin-bottom: 6px;
+            font-size: 14px;
+            margin-bottom: 4px;
             display: flex;
             justify-content: space-between;
         }
@@ -122,8 +168,8 @@
         .progress-bar-background {
             width: 100%;
             background-color: #334155;
-            height: 8px;
-            border-radius: 4px;
+            height: 6px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
@@ -138,15 +184,25 @@
 <body>
 
     <div>Teachable Machine Audio Model</div>
-    <h1>Letter Detector AI</h1>
-    <div class="subtitle">Say <strong>A, B, C, or D</strong>. Cross 75% probability to freeze the system briefly.</div>
+    <h1>Voice-Controlled Trivia Quiz</h1>
+    <div class="subtitle">Say a letter clearly to preview choices. Use the submission button to evaluate.</div>
     
-    <button type="button" onclick="init()">Start</button>
+    <button type="button" id="start-btn" onclick="init()">Start Quiz Engine</button>
     
-    <div id="focus-card">?</div>
+    <div id="quiz-container">
+        <div class="question">Which is NOT a plural for octopus?</div>
+        <div class="options-list">
+            <div class="option" id="option-A"><strong>A.</strong> Octopodes</div>
+            <div class="option" id="option-B"><strong>B.</strong> Octopi</div>
+            <div class="option" id="option-C"><strong>C.</strong> Octopuses</div>
+            <div class="option" id="option-D"><strong>D.</strong> Octopera</div>
+        </div>
+    </div>
+
+    <button type="button" id="lock-btn" onclick="lockInAnswer()">Lock Answer</button>
     <div id="status-text"></div>
 
-    <div id="label-container"></div>
+    <div id="label-container" style="display: none;"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
@@ -155,7 +211,9 @@
         const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
         
         let isPaused = false;
+        let selectedLetter = ""; // Stores currently heard answer
         const PAUSE_DURATION = 1500; 
+        const CORRECT_ANSWER = "D"; // Octopera is NOT a valid plural form
 
         async function createModel() {
             const checkpointURL = URL + "model.json"; 
@@ -175,18 +233,17 @@
             const recognizer = await createModel();
             const classLabels = recognizer.wordLabels(); 
             const labelContainer = document.getElementById("label-container");
-            const focusCard = document.getElementById("focus-card");
             const statusText = document.getElementById("status-text");
 
-            document.querySelector("button").style.display = "none";
-            focusCard.innerText = "-";
-            statusText.innerText = "Listening...";
+            // Setup button view structures
+            document.getElementById("start-btn").style.display = "none";
+            document.getElementById("lock-btn").style.display = "inline-block";
+            labelContainer.style.display = "block";
+            statusText.innerText = "Listening for A, B, C, or D...";
 
             labelContainer.innerHTML = "";
             for (let i = 0; i < classLabels.length; i++) {
-                if (classLabels[i].toLowerCase().trim() === "background noise") {
-                    continue;
-                }
+                if (classLabels[i].toLowerCase().trim() === "background noise") continue;
 
                 let rowDiv = document.createElement("div");
                 rowDiv.className = "prediction-row";
@@ -235,31 +292,65 @@
                 const targetLetters = ['a', 'b', 'c', 'd'];
                 const detectedClean = highestClass.toLowerCase().trim();
 
-                // UPDATED: Changed condition to strictly require greater than 75% confidence
+                // Trigger Preview Highlight if signal is above 75% accuracy floor
                 if (highestScore > 0.75 && targetLetters.includes(detectedClean)) {
-                    isPaused = true;
-
-                    focusCard.innerText = highestClass.toUpperCase();
-                    focusCard.classList.add("active");
-                    statusText.innerText = "Paused / Locked";
-                    statusText.className = "paused";
-
-                    setTimeout(() => {
-                        isPaused = false;
-                        focusCard.classList.remove("active");
-                        statusText.innerText = "Listening...";
-                        statusText.className = "";
-                    }, PAUSE_DURATION);
-                } else {
-                    focusCard.classList.remove("active");
+                    selectedLetter = highestClass.toUpperCase();
+                    highlightOption(selectedLetter);
                 }
 
             }, {
                 includeSpectrogram: true, 
-                probabilityThreshold: 0.75, // UPDATED: Changed underlying engine threshold floor to 75%
+                probabilityThreshold: 0.75, 
                 invokeCallbackOnNoiseAndUnknown: true,
                 overlapFactor: 0.50 
             });
+        }
+
+        // Highlights option row internally based on voice target strings
+        function highlightOption(letter) {
+            // Remove previous selections
+            document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+            
+            // Add selection to active speech target
+            const activeTarget = document.getElementById("option-" + letter);
+            if (activeTarget) {
+                activeTarget.classList.add("selected");
+            }
+        }
+
+        // Evaluates user answer when "Lock Answer" is chosen
+        function lockInAnswer() {
+            if (!selectedLetter) {
+                alert("Please state your choice (A, B, C, or D) out loud before trying to submit!");
+                return;
+            }
+
+            if (isPaused) return; // Prevent double submissions
+            isPaused = true;
+
+            const quizContainer = document.getElementById("quiz-container");
+            const statusText = document.getElementById("status-text");
+
+            if (selectedLetter === CORRECT_ANSWER) {
+                quizContainer.className = "correct";
+                statusText.innerText = "CORRECT! D is not a plural form.";
+                statusText.className = "paused";
+                statusText.style.color = "#22c55e";
+            } else {
+                quizContainer.className = "wrong";
+                statusText.innerText = `WRONG! You selected ${selectedLetter}. Try again!`;
+                statusText.className = "paused";
+                statusText.style.color = "#ef4444";
+            }
+
+            // Lock application temporarily so users see evaluation metrics
+            setTimeout(() => {
+                isPaused = false;
+                quizContainer.className = "";
+                statusText.innerText = "Listening for A, B, C, or D...";
+                statusText.className = "";
+                statusText.style.color = "";
+            }, 3000); // UI holds green/red state indicators for 3 seconds
         }
     </script>
 </body>
