@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice-Controlled Trivia Quiz</title>
+    <title>Voice-Controlled Trivia Quiz Game</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -55,7 +55,7 @@
             background-color: #e2e8f0;
             color: #0f172a;
             box-shadow: 0 4px 14px rgba(255, 255, 255, 0.1);
-            display: none; /* Shown after initialization */
+            display: none; 
         }
 
         #lock-btn:hover {
@@ -76,7 +76,6 @@
             transition: border-color 0.3s ease, box-shadow 0.3s ease;
         }
 
-        /* Correct / Wrong States applied to entire quiz card */
         #quiz-container.correct {
             border-color: #22c55e;
             box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
@@ -85,6 +84,15 @@
         #quiz-container.wrong {
             border-color: #ef4444;
             box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
+        }
+
+        .question-tracker {
+            color: #38bdf8;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
         }
 
         .question {
@@ -111,7 +119,6 @@
             transition: all 0.2s ease;
         }
 
-        /* Selection styles generated via voice detection */
         .option.selected {
             border-color: #38bdf8;
             background-color: #0c4a6e;
@@ -119,7 +126,6 @@
             font-weight: 700;
         }
 
-        /* Split display system state text */
         #status-text {
             font-size: 14px;
             font-weight: 600;
@@ -128,6 +134,7 @@
             color: #22c55e;
             margin-bottom: 25px;
             height: 20px;
+            text-align: center;
         }
 
         #status-text.paused {
@@ -185,17 +192,18 @@
 
     <div>Teachable Machine Audio Model</div>
     <h1>Voice-Controlled Trivia Quiz</h1>
-    <div class="subtitle">Say a letter clearly to preview choices. Use the submission button to evaluate.</div>
+    <div class="subtitle">Say a letter clearly to preview choices. Use "Lock Answer" to check correctness.</div>
     
     <button type="button" id="start-btn" onclick="init()">Start Quiz Engine</button>
     
-    <div id="quiz-container">
-        <div class="question">Which is NOT a plural for octopus?</div>
+    <div id="quiz-container" style="display: none;">
+        <div class="question-tracker" id="q-track">Question 1 of 3</div>
+        <div class="question" id="q-text">Loading question...</div>
         <div class="options-list">
-            <div class="option" id="option-A"><strong>A.</strong> Octopodes</div>
-            <div class="option" id="option-B"><strong>B.</strong> Octopi</div>
-            <div class="option" id="option-C"><strong>C.</strong> Octopuses</div>
-            <div class="option" id="option-D"><strong>D.</strong> Octopera</div>
+            <div class="option" id="option-A"><strong>A.</strong> <span id="text-A">Option A</span></div>
+            <div class="option" id="option-B"><strong>B.</strong> <span id="text-B">Option B</span></div>
+            <div class="option" id="option-C"><strong>C.</strong> <span id="text-C">Option C</span></div>
+            <div class="option" id="option-D"><strong>D.</strong> <span id="text-D">Option D</span></div>
         </div>
     </div>
 
@@ -211,9 +219,30 @@
         const URL = "https://teachablemachine.withgoogle.com/models/Im0XO8uSz/";
         
         let isPaused = false;
-        let selectedLetter = ""; // Stores currently heard answer
-        const PAUSE_DURATION = 1500; 
-        const CORRECT_ANSWER = "D"; // Octopera is NOT a valid plural form
+        let selectedLetter = ""; 
+        let currentQuestionIndex = 0;
+
+        // Data array containing your entire structured quiz bank
+        const quizData = [
+            {
+                question: "Which is NOT a plural for octopus?",
+                answers: { A: "Octopodes", B: "Octopi", C: "Octopuses", D: "Octopera" },
+                correct: "D",
+                fact: "D is correct! Octopera is completely made up."
+            },
+            {
+                question: "Which planet in our solar system is known as the Red Planet?",
+                answers: { A: "Venus", B: "Mars", C: "Jupiter", D: "Saturn" },
+                correct: "B",
+                fact: "B is correct! Iron oxide on Mars' surface gives it a reddish appearance."
+            },
+            {
+                question: "Which political organization's headquarters was broken into during the 1972 Watergate break-in?",
+                answers: { A: "Republican National Committee", B: "Committee to Re-elect the President", C: "Democratic National Committee", D: "AFL-CIO" },
+                correct: "C",
+                fact: "C is correct! The break-in occurred at the DNC offices in the Watergate complex."
+            }
+        ];
 
         async function createModel() {
             const checkpointURL = URL + "model.json"; 
@@ -235,11 +264,13 @@
             const labelContainer = document.getElementById("label-container");
             const statusText = document.getElementById("status-text");
 
-            // Setup button view structures
             document.getElementById("start-btn").style.display = "none";
+            document.getElementById("quiz-container").style.display = "block";
             document.getElementById("lock-btn").style.display = "inline-block";
             labelContainer.style.display = "block";
-            statusText.innerText = "Listening for A, B, C, or D...";
+            
+            // Draw initial question onto interface
+            renderQuestion();
 
             labelContainer.innerHTML = "";
             for (let i = 0; i < classLabels.length; i++) {
@@ -292,7 +323,6 @@
                 const targetLetters = ['a', 'b', 'c', 'd'];
                 const detectedClean = highestClass.toLowerCase().trim();
 
-                // Trigger Preview Highlight if signal is above 75% accuracy floor
                 if (highestScore > 0.75 && targetLetters.includes(detectedClean)) {
                     selectedLetter = highestClass.toUpperCase();
                     highlightOption(selectedLetter);
@@ -306,51 +336,83 @@
             });
         }
 
-        // Highlights option row internally based on voice target strings
-        function highlightOption(letter) {
-            // Remove previous selections
+        // Populates target question fields dynamically using current state pointers
+        function renderQuestion() {
+            selectedLetter = ""; // reset frame logic
             document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
-            
-            // Add selection to active speech target
+            document.getElementById("status-text").innerText = "Listening for A, B, C, or D...";
+            document.getElementById("status-text").style.color = "";
+            document.getElementById("status-text").className = "";
+
+            if (currentQuestionIndex < quizData.length) {
+                const currentData = quizData[currentQuestionIndex];
+                document.getElementById("q-track").innerText = `Question ${currentQuestionIndex + 1} of ${quizData.length}`;
+                document.getElementById("q-text").innerText = currentData.question;
+                document.getElementById("text-A").innerText = currentData.answers.A;
+                document.getElementById("text-B").innerText = currentData.answers.B;
+                document.getElementById("text-C").innerText = currentData.answers.C;
+                document.getElementById("text-D").innerText = currentData.answers.D;
+            } else {
+                // End game visual cards
+                document.getElementById("q-track").innerText = "Quiz Completed!";
+                document.getElementById("q-text").innerText = "🎉 Congratulations! You cleared all the questions using your voice.";
+                document.getElementById("options-list").style.display = "none";
+                document.getElementById("lock-btn").style.display = "none";
+                document.getElementById("status-text").style.display = "none";
+            }
+        }
+
+        function highlightOption(letter) {
+            document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
             const activeTarget = document.getElementById("option-" + letter);
             if (activeTarget) {
                 activeTarget.classList.add("selected");
             }
         }
 
-        // Evaluates user answer when "Lock Answer" is chosen
         function lockInAnswer() {
-            if (!selectedLetter) {
-                alert("Please state your choice (A, B, C, or D) out loud before trying to submit!");
+            if (!selectedLetter || currentQuestionIndex >= quizData.length) {
+                alert("Please state your choice clearly out loud first!");
                 return;
             }
 
-            if (isPaused) return; // Prevent double submissions
+            if (isPaused) return; 
             isPaused = true;
 
             const quizContainer = document.getElementById("quiz-container");
             const statusText = document.getElementById("status-text");
+            const activeQuestion = quizData[currentQuestionIndex];
 
-            if (selectedLetter === CORRECT_ANSWER) {
+            if (selectedLetter === activeQuestion.correct) {
                 quizContainer.className = "correct";
-                statusText.innerText = "CORRECT! D is not a plural form.";
-                statusText.className = "paused";
+                statusText.innerText = activeQuestion.fact;
                 statusText.style.color = "#22c55e";
+
+                // Advance track variable pointer index
+                currentQuestionIndex++;
+
+                // Clear layout state animations and switch cards after a 2.5s window
+                setTimeout(() => {
+                    isPaused = false;
+                    quizContainer.className = "";
+                    renderQuestion();
+                }, 2500);
+
             } else {
                 quizContainer.className = "wrong";
-                statusText.innerText = `WRONG! You selected ${selectedLetter}. Try again!`;
-                statusText.className = "paused";
+                statusText.innerText = `WRONG! You selected ${selectedLetter}. Try speaking another letter!`;
                 statusText.style.color = "#ef4444";
-            }
+                statusText.className = "paused";
 
-            // Lock application temporarily so users see evaluation metrics
-            setTimeout(() => {
-                isPaused = false;
-                quizContainer.className = "";
-                statusText.innerText = "Listening for A, B, C, or D...";
-                statusText.className = "";
-                statusText.style.color = "";
-            }, 3000); // UI holds green/red state indicators for 3 seconds
+                // Release engine lock but DON'T advance index so they can correct themselves
+                setTimeout(() => {
+                    isPaused = false;
+                    quizContainer.className = "";
+                    statusText.innerText = "Listening for A, B, C, or D...";
+                    statusText.className = "";
+                    statusText.style.color = "";
+                }, 2000);
+            }
         }
     </script>
 </body>
