@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice-Controlled Trivia Quiz Game</title>
+    <title>Voice Trivia - Millionaire Edition</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
+            font-family: 'Segoe UI', Impact, Arial, sans-serif;
+            background: radial-gradient(circle, #091026 0%, #020514 100%);
+            color: #ffffff;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -16,184 +16,233 @@
             min-height: 100vh;
             margin: 0;
             padding: 20px;
+            overflow-x: hidden;
+        }
+
+        /* Top Title & Branding Elements */
+        .brand-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .brand-header div {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3em;
+            color: #38bdf8;
+            font-weight: bold;
         }
 
         h1 {
-            color: #38bdf8;
-            margin-bottom: 5px;
-            font-size: 2.2rem;
+            background: linear-gradient(to bottom, #ffffff 40%, #93c5fd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 5px 0;
+            font-size: 2.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
         }
 
-        .subtitle {
-            color: #94a3b8;
+        /* Central Game Board Container */
+        #quiz-container {
+            width: 100%;
+            max-width: 850px;
             margin-bottom: 30px;
-            text-align: center;
-            max-width: 500px;
-        }
-
-        /* Action Controls */
-        #start-btn, #lock-btn, #restart-btn {
-            background-color: #38bdf8;
-            color: #0f172a;
-            border: none;
-            padding: 16px 32px;
-            font-size: 18px;
-            font-weight: bold;
-            border-radius: 30px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            box-shadow: 0 4px 14px rgba(56, 189, 248, 0.4);
-            margin-bottom: 20px;
-        }
-
-        #start-btn:hover, #lock-btn:hover, #restart-btn:hover {
-            background-color: #7dd3fc;
-            transform: scale(1.03);
-        }
-
-        #lock-btn {
-            background-color: #e2e8f0;
-            color: #0f172a;
-            box-shadow: 0 4px 14px rgba(255, 255, 255, 0.1);
-            display: none; 
-        }
-
-        #lock-btn:hover {
-            background-color: #ffffff;
-        }
-
-        #restart-btn {
-            background-color: #10b981;
-            color: #fff;
-            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
             display: none;
         }
 
-        #restart-btn:hover {
-            background-color: #34d399;
-        }
-
-        /* Trivia Section Card */
-        #quiz-container {
-            background-color: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 550px;
-            width: 100%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        /* Question Banner Box */
+        .question-box {
+            background: linear-gradient(180deg, #0f1c3f 0%, #060d24 100%);
+            border: 2px solid #1e3a8a;
+            border-radius: 40px;
+            padding: 30px 40px;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6), inset 0 0 15px rgba(56, 189, 248, 0.1);
+            position: relative;
             margin-bottom: 25px;
-            box-sizing: border-box;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
-        }
-
-        #quiz-container.correct {
-            border-color: #22c55e;
-            box-shadow: 0 0 25px rgba(34, 197, 94, 0.4);
-        }
-
-        #quiz-container.wrong {
-            border-color: #ef4444;
-            box-shadow: 0 0 25px rgba(239, 68, 68, 0.4);
         }
 
         .question-tracker {
-            color: #38bdf8;
+            color: #eab308;
             font-size: 0.9rem;
             text-transform: uppercase;
-            font-weight: 700;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            font-weight: bold;
+            letter-spacing: 0.2em;
+            margin-bottom: 10px;
         }
 
         .question {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            line-height: 1.4;
-        }
-
-        .options-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-
-        .option {
-            background-color: #0f172a;
-            border: 1px solid #334155;
-            padding: 14px 20px;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
-
-        .option.selected {
-            border-color: #38bdf8;
-            background-color: #0c4a6e;
-            color: #38bdf8;
-            font-weight: 700;
-        }
-
-        #status-text {
-            font-size: 14px;
+            font-size: 1.6rem;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            color: #22c55e;
-            margin-bottom: 25px;
-            height: 20px;
-            text-align: center;
+            line-height: 1.4;
+            color: #ffffff;
         }
 
-        #status-text.paused {
-            color: #ef4444;
-            animation: pulse 1s infinite alternate;
+        /* 2x2 Millionaire Answer Grid Layout */
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            width: 100%;
         }
 
-        @keyframes pulse {
-            from { opacity: 0.6; }
+        @media (max-width: 600px) {
+            .options-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Individual Answer Nodes */
+        .option {
+            background: linear-gradient(180deg, #0b1532 0%, #03081a 100%);
+            border: 2px solid #1e3b8b;
+            border-radius: 30px;
+            padding: 18px 25px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Hotkey character prefixes (e.g., A:, B:) */
+        .option-prefix {
+            color: #eab308;
+            font-weight: bold;
+            margin-right: 12px;
+            letter-spacing: 0.05em;
+        }
+
+        .option-text {
+            color: #f1f5f9;
+        }
+
+        /* Voice Detection Preview State */
+        .option.selected {
+            border-color: #3b82f6;
+            background: linear-gradient(180deg, #1d4ed8 0%, #0b2574 100%);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Lock State (Suspense Orange) */
+        #quiz-container.locked-in .option.selected {
+            border-color: #f97316;
+            background: linear-gradient(180deg, #ea580c 0%, #9a3412 100%);
+            box-shadow: 0 0 25px rgba(249, 115, 22, 0.6);
+            animation: pulse-orange 0.5s infinite alternate;
+        }
+
+        /* Final Verdict States */
+        #quiz-container.correct-verdict .option.selected {
+            border-color: #22c55e;
+            background: linear-gradient(180deg, #16a34a 0%, #14532d 100%) !important;
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8) !important;
+            animation: none;
+        }
+
+        #quiz-container.wrong-verdict .option.selected {
+            border-color: #ef4444;
+            background: linear-gradient(180deg, #dc2626 0%, #7f1d1d 100%) !important;
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.8) !important;
+            animation: none;
+        }
+
+        @keyframes pulse-orange {
+            from { opacity: 0.8; }
             to { opacity: 1; }
         }
 
-        /* Visual Signal Trackers Frame */
+        /* Action Buttons styling */
+        #start-btn, #lock-btn, #restart-btn {
+            background: linear-gradient(180deg, #2563eb 0%, #1d4ed8 100%);
+            color: #ffffff;
+            border: 2px solid #3b82f6;
+            padding: 16px 40px;
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            margin-top: 10px;
+        }
+
+        #start-btn:hover, #lock-btn:hover, #restart-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.5);
+        }
+
+        #lock-btn {
+            background: linear-gradient(180deg, #eab308 0%, #ca8a04 100%);
+            border-color: #facc15;
+            color: #000;
+            display: none;
+        }
+
+        #restart-btn {
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+            border-color: #34d399;
+            display: none;
+        }
+
+        /* Screen Message Readout HUD */
+        #status-text {
+            font-size: 1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #38bdf8;
+            margin: 20px 0;
+            min-height: 24px;
+            text-align: center;
+            max-width: 600px;
+        }
+
+        /* Voice Calibration Panel ("The Lifeline Rack") */
         #label-container {
-            background: #1e293b;
-            padding: 15px 25px;
-            border-radius: 16px;
-            border: 1px solid #334155;
-            min-width: 320px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 15px 30px;
+            border-radius: 20px;
+            border: 1px solid #1e3a8a;
+            width: 100%;
+            max-width: 400px;
+            box-sizing: border-box;
+            display: none;
         }
 
         .prediction-row {
             display: flex;
-            flex-direction: column;
-            padding: 8px 0;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
         }
 
         .label-text {
-            font-weight: 600;
-            color: #e2e8f0;
-            font-size: 14px;
-            margin-bottom: 4px;
-            display: flex;
-            justify-content: space-between;
+            font-weight: bold;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            width: 70px;
         }
 
         .progress-bar-background {
-            width: 100%;
-            background-color: #334155;
+            flex-grow: 1;
+            background-color: #0b1329;
             height: 6px;
             border-radius: 3px;
             overflow: hidden;
+            border: 1px solid #1e293b;
         }
 
         .progress-bar-fill {
             height: 100%;
-            background-color: #38bdf8;
+            background: linear-gradient(90deg, #3b82f6, #38bdf8);
             width: 0%;
             transition: width 0.05s ease-out;
         }
@@ -201,28 +250,32 @@
 </head>
 <body>
 
-    <div>Teachable Machine Audio Model</div>
-    <h1>Voice-Controlled Trivia Quiz</h1>
-    <div class="subtitle">Say a letter clearly to preview choices. Use "Lock Answer" to check correctness.</div>
+    <div class="brand-header">
+        <div>Teachable Machine Audio Engine</div>
+        <h1>Who Wants to Be a Trivia Master?</h1>
+    </div>
     
-    <button type="button" id="start-btn" onclick="init()">Start Quiz Engine</button>
+    <button type="button" id="start-btn" onclick="init()">Let's Play</button>
     
-    <div id="quiz-container" style="display: none;">
-        <div class="question-tracker" id="q-track">Question 1 of 6</div>
-        <div class="question" id="q-text">Loading question...</div>
-        <div class="options-list" id="options-block">
-            <div class="option" id="option-A"><strong>A.</strong> <span id="text-A">Option A</span></div>
-            <div class="option" id="option-B"><strong>B.</strong> <span id="text-B">Option B</span></div>
-            <div class="option" id="option-C"><strong>C.</strong> <span id="text-C">Option C</span></div>
-            <div class="option" id="option-D"><strong>D.</strong> <span id="text-D">Option D</span></div>
+    <div id="quiz-container">
+        <div class="question-box">
+            <div class="question-tracker" id="q-track">Question 1 of 6</div>
+            <div class="question" id="q-text">Loading Production Frame...</div>
+        </div>
+        
+        <div class="options-grid" id="options-block">
+            <div class="option" id="option-A"><span class="option-prefix">A:</span><span class="option-text" id="text-A">...</span></div>
+            <div class="option" id="option-B"><span class="option-prefix">B:</span><span class="option-text" id="text-B">...</span></div>
+            <div class="option" id="option-C"><span class="option-prefix">C:</span><span class="option-text" id="text-C">...</span></div>
+            <div class="option" id="option-D"><span class="option-prefix">D:</span><span class="option-text" id="text-D">...</span></div>
         </div>
     </div>
 
-    <button type="button" id="lock-btn" onclick="lockInAnswer()">Lock Answer</button>
-    <button type="button" id="restart-btn" onclick="restartQuiz()">Restart Quiz</button>
+    <button type="button" id="lock-btn" onclick="lockInAnswer()">Final Answer?</button>
+    <button type="button" id="restart-btn" onclick="restartQuiz()">Play Again</button>
     
     <div id="status-text"></div>
-    <div id="label-container" style="display: none;"></div>
+    <div id="label-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
@@ -234,43 +287,42 @@
         let selectedLetter = ""; 
         let currentQuestionIndex = 0;
 
-        // Expanded Data array containing all 6 trivia questions
         const quizData = [
             {
                 question: "Which is NOT a plural for octopus?",
                 answers: { A: "Octopodes", B: "Octopi", C: "Octopuses", D: "Octopera" },
                 correct: "D",
-                fact: "D is correct! Octopera is completely made up."
+                fact: "Correct! D is your final answer. 'Octopera' is completely fake."
             },
             {
                 question: "Which planet in our solar system is known as the Red Planet?",
                 answers: { A: "Venus", B: "Mars", C: "Jupiter", D: "Saturn" },
                 correct: "B",
-                fact: "B is correct! Iron oxide on Mars' surface gives it a reddish appearance."
+                fact: "Correct! B is your final answer. Rust on the surface gives Mars its red look."
             },
             {
-                question: "Which political organization's headquarters was broken into during the 1972 Watergate break-in?",
+                question: "Which political organization's headquarters was broken into during the 1972 Watergate scandal?",
                 answers: { A: "Republican National Committee", B: "Committee to Re-elect the President", C: "Democratic National Committee", D: "AFL-CIO" },
                 correct: "C",
-                fact: "C is correct! The break-in occurred at the DNC offices in the Watergate complex."
+                fact: "Correct! C is your final answer. It happened at the DNC office inside Watergate."
             },
             {
                 question: "Which of the following is the simplest member of organic compounds?",
                 answers: { A: "Formic acid", B: "Formaldehyde", C: "Methane", D: "Methanol" },
                 correct: "C",
-                fact: "C is correct! Methane (CH₄) is the simplest alkane and organic compound."
+                fact: "Correct! C is your final answer. Methane (CH₄) is the absolute simplest layout."
             },
             {
                 question: "What is the coefficient of x^3 in the binomial expansion of (2x - 3)^5?",
                 answers: { A: "-1080", B: "-720", C: "720", D: "1080" },
                 correct: "C",
-                fact: "C is correct! Calculated via the Binomial Theorem as 10 * (2x)^3 * (-3)^2 = 720."
+                fact: "Correct! C is your final answer. The expansion evaluates cleanly to 720."
             },
             {
                 question: "What do the eyes of Doctor T. J. Eckleburg symbolize to George Wilson?",
                 answers: { A: "The watchful eyes of God", B: "The loss of innocence", C: "The eyes of the upper class", D: "A symbol of hope for the future" },
                 correct: "A",
-                fact: "A is correct! In 'The Great Gatsby', Wilson looks at the billboard and notes that God sees everything."
+                fact: "Stunning! A is your final answer. Wilson believes those eyes are the eyes of God."
             }
         ];
 
@@ -292,7 +344,6 @@
             const recognizer = await createModel();
             const classLabels = recognizer.wordLabels(); 
             const labelContainer = document.getElementById("label-container");
-            const statusText = document.getElementById("status-text");
 
             document.getElementById("start-btn").style.display = "none";
             document.getElementById("quiz-container").style.display = "block";
@@ -311,7 +362,7 @@
                 let textDiv = document.createElement("div");
                 textDiv.className = "label-text";
                 textDiv.id = "text-label-" + i;
-                textDiv.innerHTML = classLabels[i] + ": 0.00";
+                textDiv.innerHTML = classLabels[i];
 
                 let barBg = document.createElement("div");
                 barBg.className = "progress-bar-background";
@@ -338,8 +389,6 @@
                     const labelClean = classLabels[i].toLowerCase().trim();
                     
                     if (labelClean !== "background noise") {
-                        const classPrediction = classLabels[i] + ": " + currentScore.toFixed(2);
-                        document.getElementById("text-label-" + i).innerHTML = classPrediction;
                         document.getElementById("bar-" + i).style.width = (currentScore * 100) + "%";
                     }
 
@@ -367,17 +416,16 @@
 
         function renderQuestion() {
             selectedLetter = ""; 
+            document.getElementById("quiz-container").className = ""; 
             document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
-            document.getElementById("status-text").innerText = "Listening for A, B, C, or D...";
-            document.getElementById("status-text").style.color = "";
-            document.getElementById("status-text").className = "";
+            document.getElementById("status-text").innerText = "Speak your answer clear into the mic...";
+            document.getElementById("status-text").style.color = "#38bdf8";
 
             if (currentQuestionIndex < quizData.length) {
                 const currentData = quizData[currentQuestionIndex];
-                document.getElementById("options-block").style.display = "flex";
+                document.getElementById("options-block").style.display = "grid";
                 document.getElementById("lock-btn").style.display = "inline-block";
                 document.getElementById("restart-btn").style.display = "none";
-                document.getElementById("status-text").style.display = "block";
 
                 document.getElementById("q-track").innerText = `Question ${currentQuestionIndex + 1} of ${quizData.length}`;
                 document.getElementById("q-text").innerText = currentData.question;
@@ -386,9 +434,8 @@
                 document.getElementById("text-C").innerText = currentData.answers.C;
                 document.getElementById("text-D").innerText = currentData.answers.D;
             } else {
-                // Out of questions -> trigger end-game panel layout
-                document.getElementById("q-track").innerText = "Quiz Completed!";
-                document.getElementById("q-text").innerText = "🎉 Congratulations! You cleared all the questions using your voice.";
+                document.getElementById("q-track").innerText = "Quiz Terminated";
+                document.getElementById("q-text").innerText = "🏆 Incredible! You walked away with the ultimate title!";
                 document.getElementById("options-block").style.display = "none";
                 document.getElementById("lock-btn").style.display = "none";
                 document.getElementById("status-text").style.display = "none";
@@ -406,7 +453,7 @@
 
         function lockInAnswer() {
             if (!selectedLetter || currentQuestionIndex >= quizData.length) {
-                alert("Please state your choice clearly out loud first!");
+                alert("Please voice an option selection first before finalizing!");
                 return;
             }
 
@@ -417,36 +464,39 @@
             const statusText = document.getElementById("status-text");
             const activeQuestion = quizData[currentQuestionIndex];
 
-            if (selectedLetter === activeQuestion.correct) {
-                quizContainer.className = "correct";
-                statusText.innerText = activeQuestion.fact;
-                statusText.style.color = "#22c55e";
+            // Step 1: Engage Suspense Mode (Turn Orange)
+            quizContainer.className = "locked-in";
+            statusText.innerText = "Checking final answer...";
+            statusText.style.color = "#f97316";
 
-                currentQuestionIndex++;
+            // Step 2: Delay Reveal for dramatic tension
+            setTimeout(() => {
+                if (selectedLetter === activeQuestion.correct) {
+                    quizContainer.className = "correct-verdict";
+                    statusText.innerText = activeQuestion.fact;
+                    statusText.style.color = "#22c55e";
 
-                setTimeout(() => {
-                    isPaused = false;
-                    quizContainer.className = "";
-                    renderQuestion();
-                }, 2500);
+                    currentQuestionIndex++;
 
-            } else {
-                quizContainer.className = "wrong";
-                statusText.innerText = `WRONG! You selected ${selectedLetter}. Try speaking another letter!`;
-                statusText.style.color = "#ef4444";
-                statusText.className = "paused";
+                    setTimeout(() => {
+                        isPaused = false;
+                        renderQuestion();
+                    }, 3000);
 
-                setTimeout(() => {
-                    isPaused = false;
-                    quizContainer.className = "";
-                    statusText.innerText = "Listening for A, B, C, or D...";
-                    statusText.className = "";
-                    statusText.style.color = "";
-                }, 2000);
-            }
+                } else {
+                    quizContainer.className = "wrong-verdict";
+                    statusText.innerText = `Incorrect! You lose it all on choice ${selectedLetter}. Try that question again!`;
+                    statusText.style.color = "#ef4444";
+
+                    setTimeout(() => {
+                        isPaused = false;
+                        quizContainer.className = "";
+                        renderQuestion();
+                    }, 3000);
+                }
+            }, 2000); // 2-second suspense window
         }
 
-        // Resets index vectors and flags to spin engine states backwards
         function restartQuiz() {
             currentQuestionIndex = 0;
             isPaused = false;
